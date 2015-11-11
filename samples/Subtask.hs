@@ -1,16 +1,19 @@
 module Subtask where
        
 import System.Time
+import Text.Printf
 
 
 data Task = Task { tName :: String,
                    due :: ClockTime,
                    taskDone :: Bool,
-                   subtasks :: Maybe [Subtask] } deriving (Show)
+                   subtasks :: Maybe [Subtask] }
+            | NilTask
 
      
 data Subtask = Subtask {stName :: String,
-                        stDone :: Bool } 
+                        stDone :: Bool }
+               | NilSubtask
 
 
 -- Takes a Task and computes the percentage of it's Subtasks that are done,
@@ -24,9 +27,19 @@ percentComplete (Task _ _ _ (Just subtasks)) = if n == 0 then 100.0 else
                 
                 
 instance Show Subtask where
+         show NilSubtask = "No Tasks"
          show (Subtask name done) =
-               "Subtask '" ++ name ++ "'" ++ "; status: " ++ status
+                name ++ "" ++ "; status: " ++ status
                 where status = if done then "complete" else "incomplete"
+
+         
+instance Show Task where
+         show NilTask = "No Subtasks"
+         show t@(Task name due done st) = "'" ++ name ++ "'; status: " ++ (show status) ++ "; "
+                 ++ (show $ length st) ++ " subtasks, "
+                 ++ (printf "%.1f" $ percentComplete t) ++ "% complete; due: " ++ (show due)
+                 where status = if done then "complete" else "incomplete"         
+         
 
 instance Eq Subtask where
          (Subtask name1 done1) == (Subtask name2 done2) =
@@ -45,3 +58,9 @@ instance Ord Task where
                (due1 `compare` due2)
                      `mappend`
                ( (percentComplete t1) `compare` (percentComplete t2) )
+
+-- Compare by name only for Subtasks
+-- (they might be a set of numbers like ["#1", "#2",...]         
+instance Ord Subtask where
+         (Subtask name1 _) `compare` (Subtask name2 _) =
+                  (name1 `compare` name2)
