@@ -7,7 +7,7 @@ import Text.Printf
 data Task = Task { tName :: String,
                    due :: ClockTime,
                    taskDone :: Bool,
-                   subtasks :: Maybe [Subtask] }
+                   subtasks :: [Subtask] }
             | NilTask
 
      
@@ -19,9 +19,8 @@ data Subtask = Subtask {stName :: String,
 -- Takes a Task and computes the percentage of it's Subtasks that are done,
 -- i.e. have the property (complete = True)
 percentComplete :: Task -> Float
-percentComplete (Task _ _ done Nothing) = if done then 100.0 else 0.0
 percentComplete (Task _ _ True _) = 100.0
-percentComplete (Task _ _ _ (Just subtasks)) = if n == 0 then 100.0 else
+percentComplete (Task _ _ _ subtasks) = if n == 0 then 100.0 else
                                       (sum (map (\st -> if stDone st then 1 else 0) subtasks) / n) * 100.0
                                       where n = fromIntegral $ length subtasks
                 
