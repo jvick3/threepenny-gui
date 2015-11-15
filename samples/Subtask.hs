@@ -23,13 +23,24 @@ data Task = Task { tName :: String,
                    due :: UTCTime,
                    taskDone :: Bool,
                    subtasks :: [Subtask] }
+                 | NilTask
                  deriving (Generic)
 
      
 data Subtask = Subtask {stName :: String,
                         stDone :: Bool }
+               | NilSubtask
                deriving (Generic)
 
+
+isNilTask :: Task -> Bool
+isNilTask NilTask = True
+isNilTask _ = False
+
+isNilSubtask :: Subtask -> Bool
+isNilSubtask NilSubtask = True
+isNilSubtask _ = False
+     
 
 -- Takes a Task and computes the percentage of it's Subtasks that are done,
 -- i.e. have the property (complete = True)
@@ -41,7 +52,6 @@ percentComplete (Task _ _ _ subtasks) = if n == 0 then 100.0 else
 
 -- Functions to make testing versions of Task's and associated Subtask's.
 dummyTask :: String -> Task
---dummyTask name = Task name (UTCTime (ModifiedJulianDay 123456789) 0) False (dummySubTasks name)
 dummyTask name = Task name (UTCTime (ModifiedJulianDay 123456789) 0) False (dummySubTasks name)            
 
 dummySubTasks :: String -> [Subtask]
