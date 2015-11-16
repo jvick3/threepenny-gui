@@ -7,7 +7,8 @@ import Graphics.UI.Threepenny.Core
 import Reactive.Threepenny
        
 import Control.Monad
-import Control.Monad.Trans
+import Control.Monad.IO.Class       
+--import Control.Monad.Trans
 import Data.Time.Clock
 import Data.Time.Calendar      
 import Data.Maybe
@@ -47,9 +48,10 @@ uiLayout tasks = mdo
             -- rather than mouse does not update the subtask list.
             -- One possible workaround would be to disable arrow keys.
             selectBehavior = pure Nothing
+        
 
         -- Create the UI Elements.
-        task_listBox <- UI.listBox (pure tasks) selectBehavior (pure $ UI.string . show)
+        task_listBox <- UI.listBox b_taskItems selectBehavior (pure $ UI.string . show)
         subtask_listBox <- UI.listBox shown_subtasks selectBehavior (pure $ UI.string . show)
 
         button_addTask <- UI.button #+ [ string "Add Task" ]
@@ -64,39 +66,69 @@ uiLayout tasks = mdo
         --------------------------------------------------------------------------
 
         -- Actions/Listeners
-        let eTaskSelect = rumors $ UI.userSelection task_listBox
+        let
+            eTaskSelect :: Event (Maybe Task)  -- Task selected from task_listBox
+            eTaskSelect = rumors $ UI.userSelection task_listBox
+
+            eDeleteTask :: Event ()   -- 'delete task' button clicked
             eDeleteTask = UI.click button_deleteTask
 
+            eAddTask :: Event ()   -- 'add task' button clicked
+            eAddTask = UI.click button_addTask        
+
+        -- taskSelected :: Behavior (Maybe Task)        
         taskSelected <- stepper Nothing $ head <$> unions
                [
                 eTaskSelect,
                 -- Change selection to Nothing if delete is pressed 
                 Nothing <$ eDeleteTask
                ]
+
+        
+        let addTask :: [Task] -> [Task]
+            addTask existingTasks = do
+                    let t = dummyTask "Fuck"
+                    t : existingTasks
+--                
+--                liftIO $ putStrLn "foo"
+--                [dummyTask "bs 1", dummyTask "bs 2"]
+                --name <- get value taskNameInput        
+                --if name == "" then do
+                --   existingTasks  -- just return the tasks as-is
+                --else do
+                --     year <- get value taskYearInput        
+                --     month <- get value taskMonthInput
+                --     day <- get value taskDayInput
+
+                --     existingTasks
+                     --let deadline = convertToTime year month day
+                     --    newTask = Task name deadline False []
+        
+                     --(newTask : existingTasks)
         
 
-        on UI.click button_addTask $ \_ -> do
-                name <- get value taskNameInput 
---                year <- get value taskYearInput
---                month <- get value taskMonthInput 
---                day <- get value taskDayInput
---                let deadline = convertToTime year month day
---                    newTask = Task name deadline False []
+--        b_taskItems :: Behavior [Task]
+        b_taskItems <- accumB tasks $ concatenate <$> unions 
+              [ addTask <$ eAddTask
+                -- deleteTask tasks <$ eDeleteTask
+              ]
 
+        -- Add/Delete button behaviors:
+        -- 1. Populate info box with success state or error message,
+        -- 2. persist the changes to the '.subtasks' file.
+        on UI.click button_addTask $ \_ -> do
+                name <- get value taskNameInput
                 if name == "" then do
-                   element infoBox # set UI.text "Error: empty task name"
+                   element infoBox # set UI.text "Error: enter a task name"
                 else do
-                     element infoBox # set UI.text "Created task successfully"
-                liftIO $ persist tasks ".subtasks"
+                     existingTasks <- currentValue b_taskItems
+                     liftIO $ putStrLn ("existing tasks = " ++ (show existingTasks))
+                     liftIO $ persist existingTasks ".subtasks"
+                     element infoBox # set UI.text "Created task"
 
         
         on UI.click button_deleteTask $ \_ -> do
-        
-                element infoBox # set UI.text ("Deleted task: ") 
---                let selTask = _selectionLB task_listBox in do
-                liftIO $ putStrLn ("delete: foo = ")
-                liftIO $ persist tasks ".subtasks"
-                    --modifiedTasks = delete t tasks
+                element infoBox # set UI.text "Deleted task"
         
 
         -- Set element styles and sizes
@@ -125,6 +157,12 @@ uiLayout tasks = mdo
              ]
         ---------------------------------------------------------------------------
 
+        
+tryCreateTask :: UI Element -> UI Element -> UI Element -> UI Element -> Maybe Task
+tryCreateTask nameInp yearInp monthInp dayInp = do
+              name <- get value nameInp
+              Just $ dummyTask "fuck"
+        
         
 convertToTime :: String -> String -> String -> UTCTime
 convertToTime year month day = UTCTime ( fromGregorian y m d ) (86400 / 2)
