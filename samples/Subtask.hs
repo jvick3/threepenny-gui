@@ -21,7 +21,6 @@ import GHC.Generics
 
 data Task = Task { tName :: String,
                    due :: UTCTime,
-                   taskDone :: Bool,
                    subtasks :: [Subtask] }
                  | NilTask
                  deriving (Generic)
@@ -40,22 +39,32 @@ isNilTask _ = False
 isNilSubtask :: Subtask -> Bool
 isNilSubtask NilSubtask = True
 isNilSubtask _ = False
-     
 
+completeSubtask :: Task -> Subtask -> Task
+completeSubtask (Task name due subs) st = Task name due modSubs
+                                       where modSubs = findAndMark st subs
+
+findAndMark :: Subtask -> [Subtask] -> [Subtask]
+findAndMark _ [] = []            
+findAndMark st (x:xs) = if x == st then (markAsComplete x) : xs
+                                   else (x : (findAndMark st xs) )
+                
+markAsComplete :: Subtask -> Subtask
+markAsComplete (Subtask name done) = Subtask name True
+        
 -- Takes a Task and computes the percentage of it's Subtasks that are done,
 -- i.e. have the property (complete = True)
 percentComplete :: Task -> Float
-percentComplete (Task _ _ True _) = 100.0
-percentComplete (Task _ _ _ subtasks) = if n == 0 then 100.0 else
+percentComplete (Task _ _ subtasks) = if n == 0 then 100.0 else
                                       (sum (map (\st -> if stDone st then 1 else 0) subtasks) / n) * 100.0
                                       where n = fromIntegral $ length subtasks
 
 -- Functions to make testing versions of Task's and associated Subtask's.
 dummyTask :: String -> Task
-dummyTask name = Task name (UTCTime (ModifiedJulianDay 123456789) 0) False (dummySubTasks name)            
+dummyTask name = Task name (UTCTime (ModifiedJulianDay 123456789) 0) (dummySubTasks name)            
 
 dummySubTasks :: String -> [Subtask]
-dummySubTasks name = [ Subtask (name ++ " st " ++ (show i))  False
+dummySubTasks name  = [ Subtask (name ++ " st " ++ (show i)) False
                        | i <- [1..5]  ]
                 
                 
@@ -66,10 +75,9 @@ instance Show Subtask where
 
          
 instance Show Task where
-         show t@(Task name due done st) = "'" ++ name ++ "'; status: " ++ (show status) ++ "; "
+         show t@(Task name due st) = "'" ++ name ++ "';"
                  ++ (show $ length st) ++ " subtasks, "
                  ++ (printf "%.1f" $ percentComplete t) ++ "% complete; due: " ++ (show due)
-                 where status = if done then "complete" else "incomplete"         
          
 
 instance Eq Subtask where
@@ -77,18 +85,18 @@ instance Eq Subtask where
                   (name1 == name2) && (done1 == done2)
          
 instance Eq Task where
-         (Task n1 due1 done1 st1) == (Task n2 due2 done2 st2) =
-               (n1 == n2) && (due1 == due2) && (done1 == done2) && (st1 == st2)
+         (Task n1 due1 st1) == (Task n2 due2 st2) =
+               (n1 == n2) && (due1 == due2) && (st1 == st2)
 
 
 -- Below: compare due dates, with sooner ones being smaller.
 -- Useful for soring a list of Tasks by due date, with soonest ones appearing first.
 -- When due dates are equal, things with lower percentComplete come first (have lower precedence).         
 instance Ord Task where
-         t1@(Task _ due1 _ _) `compare` t2@(Task _ due2 _ _) =
+         t1@(Task _ due1 _) `compare` t2@(Task _ due2 _) =
                (due1 `compare` due2)
                      `mappend`
-               ( (percentComplete t1) `compare` (percentComplete t2) )
+               ( (percentComplete t2) `compare` (percentComplete t1) )
 
 -- Compare by name only for Subtasks
 -- (they might be a set of numbers like ["#1", "#2",...]         
