@@ -96,7 +96,7 @@ instance Ord Task where
          t1@(Task _ due1 _) `compare` t2@(Task _ due2 _) =
                (due1 `compare` due2)
                      `mappend`
-               ( (percentComplete t2) `compare` (percentComplete t1) )
+               ( (percentComplete t1) `compare` (percentComplete t2) )
 
 -- Compare by name only for Subtasks
 -- (they might be a set of numbers like ["#1", "#2",...]         

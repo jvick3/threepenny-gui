@@ -21,7 +21,7 @@ import Subtask
 main :: IO ()
 main = do
      savedTasks <- thaw ".subtasks"
-     let tasks = (maybe [] id) savedTasks
+     let tasks = sort $ (maybe [] id) savedTasks
          ui_elem = uiLayout tasks in do
      putStrLn ("Loaded tasks: " ++ (show tasks))
      startGUI defaultConfig (setupUI ui_elem)
@@ -57,6 +57,8 @@ uiLayout savedTasks = mdo
         monthInput <- UI.select #+ monthOptions
         dayInput <- UI.select #+ dayOptions
         yearInput <- UI.select #+ yearOptions
+        hourInput <- UI.select #+ hourOptions
+        minuteInput <- UI.select #+ minuteOptions
 
         infoBox <- UI.textarea
         --------------------------------------------------------------------------
@@ -76,7 +78,7 @@ uiLayout savedTasks = mdo
                             newSubtask = Subtask name False
                             updatedSubtasks = newSubtask : (subtasks selectedTask)
                             updatedTask = Task (tName selectedTask) (due selectedTask) updatedSubtasks
-                            updatedTasks = updatedTask : (deleteNth (fromJust taskIndex) currentTasks)
+                            updatedTasks = sort (updatedTask : (deleteNth (fromJust taskIndex) currentTasks) )
 
                         -- Persist tasks and update the global tasks variable.
                         liftIO $ persist updatedTasks ".subtasks"
@@ -85,7 +87,7 @@ uiLayout savedTasks = mdo
                         -- Update displays.
                         element taskList # set items (toElements updatedTasks)
                         element subtaskList # set items (toElements updatedSubtasks)        
-                        element infoBox # set UI.text ("Created subtask: " ++ name)
+                        element infoBox # set UI.text ("Created subtask: '" ++ name ++ "'")
                         element nameInput # set value ""  -- clear name input field
         ---------------------------------------------------------------------------------                        
         
@@ -100,16 +102,18 @@ uiLayout savedTasks = mdo
                      year <- get value yearInput
                      month <- get value monthInput
                      day <- get value dayInput
+                     hour <- get value hourInput
+                     minute <- get value minuteInput
                      currentTasks <- liftIO $ readIORef tasks                    
-                     let newTask =  Task name (convertToTime year month day) []
-                         updatedTasks = newTask : currentTasks
+                     let newTask =  Task name (convertToTime year month day hour minute) []
+                         updatedTasks = sort ( newTask : currentTasks )
                      -- Persist tasks and update the global tasks variable.
                      liftIO $ persist updatedTasks ".subtasks"
                      liftIO $ writeIORef tasks updatedTasks
 
                      -- Update displays.
                      element taskList # set items (toElements updatedTasks)
-                     element infoBox # set UI.text ("Created task: " ++ name)
+                     element infoBox # set UI.text ("Created task: '" ++ name ++ "'")
                      element nameInput # set value ""  -- clear name input field        
         --------------------------------------------------------------------------
 
@@ -126,7 +130,7 @@ uiLayout savedTasks = mdo
                            let selectedTask = currentTasks !! tIndex
                                selectedSubtask = (subtasks selectedTask) !! (fromJust subtaskIndex)
                                updatedTask = completeSubtask selectedTask selectedSubtask
-                               updatedTasks = updatedTask : (deleteNth tIndex currentTasks)        
+                               updatedTasks = sort (updatedTask : (deleteNth tIndex currentTasks))
         
                            liftIO $ persist updatedTasks ".subtasks"
                            liftIO $ writeIORef tasks updatedTasks
@@ -134,7 +138,7 @@ uiLayout savedTasks = mdo
                            -- Update displays.
                            element taskList # set items (toElements updatedTasks)
                            element subtaskList # set items (toElements $ subtasks updatedTask)        
-                           element infoBox # set UI.text ("Marked subtask " ++ (stName selectedSubtask) ++ " complete")
+                           element infoBox # set UI.text ("Marked subtask '" ++ (stName selectedSubtask) ++ "' complete")
         
         ---------------------------------------------------------------------------------                
         on UI.click button_delete $ \_ -> do
@@ -153,18 +157,18 @@ uiLayout savedTasks = mdo
                                currentSubtasks = subtasks selectedTask
                                updatedSubtasks = deleteNth (fromJust subtaskIndex) currentSubtasks
                                updatedTask = Task (tName selectedTask) (due selectedTask) updatedSubtasks
-                               updatedTasks = updatedTask : (deleteNth tIndex currentTasks)
+                               updatedTasks = sort (updatedTask : (deleteNth tIndex currentTasks) )
                            liftIO $ persist updatedTasks ".subtasks"
                            liftIO $ writeIORef tasks updatedTasks
 
                            -- Update displays.
                            element taskList # set items (toElements updatedTasks)
                            element subtaskList # set items (toElements updatedSubtasks)        
-                           element infoBox # set UI.text "Deleted subtask "
+                           element infoBox # set UI.text "Deleted subtask"
                                
                 else do
                      currentTasks <- liftIO $ readIORef tasks
-                     let updatedTasks = deleteNth (fromJust taskIndex) currentTasks
+                     let updatedTasks = sort (deleteNth (fromJust taskIndex) currentTasks )
 
                      -- Persist the tasks list both in the global 'tasks' variable and local file system.
                      liftIO $ persist updatedTasks ".subtasks"
@@ -183,7 +187,7 @@ uiLayout savedTasks = mdo
         
                 -- track task index; useful when subtasks are displayed but their parent task is no longer selected.
                 liftIO $ writeIORef taskSelIndex index 
-                element subtaskList # set items (toElements (subtasks chosenTask))
+                element subtaskList # set items (toElements (sort $ subtasks chosenTask))
         ---------------------------------------------------------------------------------
         
         -- Set element styles and sizes
@@ -201,11 +205,13 @@ uiLayout savedTasks = mdo
 
                    [string "Task/Subtask name:", element nameInput],
 
+                   [string "Task Deadline year: ", element yearInput],
+
                    [string "Task Deadline month: ", element monthInput],
 
                    [string "Task Deadline day: ", element dayInput],
 
-                   [string "Task Deadline year: ", element yearInput],
+                   [string "Task Deadline time: ", element hourInput, string " : ",  element minuteInput],        
 
                    [string "Info: ", element infoBox]
                
@@ -221,11 +227,15 @@ deleteNth n (x:xs)
 toElements :: (Show a) =>  [a] -> [UI Element]
 toElements = map (UI.string . show)
         
-convertToTime :: String -> String -> String -> UTCTime
-convertToTime year month day = UTCTime ( fromGregorian y m d ) (86400 / 2)
+convertToTime :: String -> String -> String -> String -> String -> UTCTime
+convertToTime year month day hour minute = UTCTime ( fromGregorian y m d ) time
                           where y = read year :: Integer
                                 m = (fromJust $ elemIndex month monthNames) + 1
                                 d = read day :: Int
+                                h = read hour :: Integer
+                                min = read minute :: Integer
+                                time = secondsToDiffTime $ (3600 * h) + (60 * min)
+                                
 
 optionNamed :: (Show a) => a -> UI Element
 optionNamed a = UI.option #+ [ string (show a) ]
@@ -238,6 +248,12 @@ dayOptions = map optionNamed [1..31]
 
 yearOptions :: [UI Element]
 yearOptions = map optionNamed [2015..2020]
+
+hourOptions :: [UI Element]
+hourOptions = map optionNamed [0..23]
+
+minuteOptions :: [UI Element]
+minuteOptions = map optionNamed [0..59]            
 
 monthNames :: [String]
 monthNames = [ "January", "February", "March", "April", "May", "June", "July",
