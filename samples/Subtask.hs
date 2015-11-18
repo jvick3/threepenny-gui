@@ -70,12 +70,12 @@ dummySubTasks name  = [ Subtask (name ++ " st " ++ (show i)) False
                 
 instance Show Subtask where
          show (Subtask name done) =
-                name ++ "" ++ "; status: " ++ status
+                "' " ++ name ++ " ' ; status: " ++ status
                 where status = if done then "complete" else "incomplete"
 
-         
+
 instance Show Task where
-         show t@(Task name due st) = "'" ++ name ++ "';"
+         show t@(Task name due st) = "' " ++ name ++ " ' ; "
                  ++ (show $ length st) ++ " subtasks, "
                  ++ (printf "%.1f" $ percentComplete t) ++ "% complete; due: " ++ (show due)
          

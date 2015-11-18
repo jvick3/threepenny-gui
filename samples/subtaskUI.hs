@@ -61,6 +61,7 @@ uiLayout savedTasks = mdo
         minuteInput <- UI.select #+ minuteOptions
 
         infoBox <- UI.textarea
+        app_header <- UI.center #+ [ string  "SUBTASK" ]
         --------------------------------------------------------------------------
 
         on UI.click button_addSubtask $ \_ -> do
@@ -87,7 +88,7 @@ uiLayout savedTasks = mdo
                         -- Update displays.
                         element taskList # set items (toElements updatedTasks)
                         element subtaskList # set items (toElements updatedSubtasks)        
-                        element infoBox # set UI.text ("Created subtask: '" ++ name ++ "'")
+                        element infoBox # set UI.text ("Created subtask: '" ++ name ++ "'") 
                         element nameInput # set value ""  -- clear name input field
         ---------------------------------------------------------------------------------                        
         
@@ -193,29 +194,39 @@ uiLayout savedTasks = mdo
         -- Set element styles and sizes
         element taskList # set (attr "size") "10"
         element subtaskList # set (attr "size") "10"
-        element infoBox # set style [("width","500px"),("height","40px"),("border","solid black 1px")]
+        element infoBox # set style [("width","150px"),("height","15px"),("border","solid black 1px")]
 
         ----------------------------------------------------------        
 
-        -- Return a grid layout of the UI elements
-        grid [ 
-                   [element taskList, element subtaskList],
+        -- Return a layout of the UI elements
+        let spacer3 = row [UI.br, UI.br, UI.br]
+        
+        column [                 UI.bold, element app_header, 
 
-                   [element button_addTask, element button_addSubtask, element button_delete, element button_complete],
+          row
+          [
+             column
+             [
+                row [element taskList],
+                row [element button_addTask, element button_delete],
+                spacer3,
+                row [string "Task/Subtask name:", element nameInput],
+                spacer3,                 
+                row [string "Task Deadline date:", element yearInput, element monthInput, element dayInput],
+                spacer3,         
+                row [string "Task Deadline time:", element hourInput, string ":",  element minuteInput] 
+             ],
+            column
+            [
+                row [element subtaskList], 
+                row [element button_addSubtask, element button_complete]
+            ],
 
-                   [string "Task/Subtask name:", element nameInput],
-
-                   [string "Task Deadline year: ", element yearInput],
-
-                   [string "Task Deadline month: ", element monthInput],
-
-                   [string "Task Deadline day: ", element dayInput],
-
-                   [string "Task Deadline time: ", element hourInput, string " : ",  element minuteInput],        
-
-                   [string "Info: ", element infoBox]
-               
-             ]
+            column
+            [
+                row [string "Info: ", element infoBox]
+            ]   ] ]
+        
         ---------------------------------------------------------------------------
 
 deleteNth :: Int -> [a] -> [a]
