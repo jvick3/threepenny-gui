@@ -12,7 +12,9 @@ import Data.Time.Clock
 import Data.Time.Calendar      
 import Data.Maybe
 import Data.List
-import Data.IORef       
+import Data.IORef
+
+import Paths       
 
 import Subtask
 
@@ -24,7 +26,8 @@ main = do
      let tasks = sort $ (maybe [] id) savedTasks
          ui_elem = uiLayout tasks in do
      putStrLn ("Loaded tasks: " ++ (show tasks))
-     startGUI defaultConfig (setupUI ui_elem)
+     static <- getStaticDir     
+     startGUI defaultConfig {jsStatic = Just static} (setupUI ui_elem)
 
 
 
@@ -53,6 +56,12 @@ uiLayout savedTasks = mdo
         button_delete <- UI.button #+ [ string "Delete Task/Subtask" ]
         button_complete <- UI.button #+ [ string "Mark as complete" ]
 
+        task_timeline <- UI.canvas
+                                # set UI.height 640
+                                # set UI.width  480
+                                # set style [ ("border", "solid black 1px"), ("background", "#eee") ]
+        img <- UI.img # set UI.src "static/task_timeline.png"
+        
         nameInput <- UI.input
         monthInput <- UI.select #+ monthOptions
         dayInput <- UI.select #+ dayOptions
@@ -182,6 +191,8 @@ uiLayout savedTasks = mdo
                 
         -- When Task is selected, populate the subtaskList with the subtasks of that Task.
         on UI.selectionChange taskList $ \e -> do
+                task_timeline # UI.drawImage img (0,0)
+        
                 currentTasks <- liftIO $ readIORef tasks
                 let index = fromJust e
                     chosenTask = currentTasks !! index
@@ -194,8 +205,7 @@ uiLayout savedTasks = mdo
         -- Set element styles and sizes
         element taskList # set (attr "size") "10"
         element subtaskList # set (attr "size") "10"
-        element infoBox # set style [("width","150px"),("height","15px"),("border","solid black 1px")]
-
+        element infoBox # set style [("width","150px"),("height","30px"),("border","solid black 1px")]
         ----------------------------------------------------------        
 
         -- Return a layout of the UI elements
@@ -223,10 +233,9 @@ uiLayout savedTasks = mdo
             ],
 
             column
-            [
+            [   --row [element task_timeline ], 
                 row [string "Info: ", element infoBox]
             ]   ] ]
-        
         ---------------------------------------------------------------------------
 
 deleteNth :: Int -> [a] -> [a]
