@@ -1,4 +1,10 @@
 {-# LANGUAGE RecursiveDo #-}
+
+-- UNM CS 556, Fall 2015
+-- James Vickers
+-- The UI code for the Subtask project.  Uses the threepenny-gui
+-- haskell project, which provides a way to make UI's that
+-- run in web browsers via HTML and a locally-running web server.   
     
 module SubtaskUI where
 
@@ -17,9 +23,11 @@ import Data.IORef
 import Paths       
 
 import Subtask
+import PlotSubtasks       
 
        
-
+-- Main function: load saved tasks from .subtasks file if present,
+-- run the UI code.   
 main :: IO ()
 main = do
      savedTasks <- thaw ".subtasks"
@@ -30,14 +38,17 @@ main = do
      startGUI defaultConfig {jsStatic = Just static} (setupUI ui_elem)
 
 
-
+-- Small method to set the browser window title, add the UI element
+-- to it.   
 setupUI :: UI Element -> Window -> UI ()
 setupUI ui w = do
         return w # set title "Subtask"
         getBody w #+ [ ui ]
         return ()        
 
-        
+
+-- The 'bigun' method: makes all of the UI elements for Subtask,
+-- and provides the handling behavior for them.   
 uiLayout :: [Task] -> UI Element
 uiLayout savedTasks = mdo
 
@@ -55,12 +66,7 @@ uiLayout savedTasks = mdo
         button_addSubtask <- UI.button #+ [ string "Add Subtask" ]
         button_delete <- UI.button #+ [ string "Delete Task/Subtask" ]
         button_complete <- UI.button #+ [ string "Mark as complete" ]
-
-        task_timeline <- UI.canvas
-                                # set UI.height 640
-                                # set UI.width  480
-                                # set style [ ("border", "solid black 1px"), ("background", "#eee") ]
-        img <- UI.img # set UI.src "static/task_timeline.png"
+        button_taskTimeline <- UI.button #+ [ string "Show task timeline" ]
         
         nameInput <- UI.input
         monthInput <- UI.select #+ monthOptions
@@ -148,9 +154,15 @@ uiLayout savedTasks = mdo
                            -- Update displays.
                            element taskList # set items (toElements updatedTasks)
                            element subtaskList # set items (toElements $ subtasks updatedTask)        
-                           element infoBox # set UI.text ("Marked subtask '" ++ (stName selectedSubtask) ++ "' complete")
+                           element infoBox # set UI.text
+                                           ("Marked subtask '"
+                                            ++ (stName selectedSubtask) ++ "' complete")
         
-        ---------------------------------------------------------------------------------                
+        ---------------------------------------------------------------------------------
+        on UI.click button_taskTimeline $ \_ -> do
+           currentTasks <- liftIO $ readIORef tasks
+           liftIO $ taskPlot currentTasks
+        ---------------------------------------------------------------------------------        
         on UI.click button_delete $ \_ -> do
                 taskIndex <- get UI.selection taskList
                 if isNothing taskIndex then do
@@ -190,9 +202,7 @@ uiLayout savedTasks = mdo
         ---------------------------------------------------------------------------------                
                 
         -- When Task is selected, populate the subtaskList with the subtasks of that Task.
-        on UI.selectionChange taskList $ \e -> do
-                task_timeline # UI.drawImage img (0,0)
-        
+        on UI.selectionChange taskList $ \e -> do        
                 currentTasks <- liftIO $ readIORef tasks
                 let index = fromJust e
                     chosenTask = currentTasks !! index
@@ -229,7 +239,8 @@ uiLayout savedTasks = mdo
             column
             [
                 row [element subtaskList], 
-                row [element button_addSubtask, element button_complete]
+                row [element button_addSubtask, element button_complete,
+                     element button_taskTimeline]
             ],
 
             column
@@ -238,15 +249,18 @@ uiLayout savedTasks = mdo
             ]   ] ]
         ---------------------------------------------------------------------------
 
+-- Delete the nth element of a list.  Used for the 'Delete task/subtask' behavior.        
 deleteNth :: Int -> [a] -> [a]
 deleteNth _ []     = []
 deleteNth n (x:xs)
            | n == 0    = xs
            | otherwise = x : deleteNth (n-1) xs
-        
+
+-- Maps a list of Show-able things into a list of threepenny UI elements.          
 toElements :: (Show a) =>  [a] -> [UI Element]
 toElements = map (UI.string . show)
-        
+
+-- Takes the String inputs from the UI and makes a time out of them.           
 convertToTime :: String -> String -> String -> String -> String -> UTCTime
 convertToTime year month day hour minute = UTCTime ( fromGregorian y m d ) time
                           where y = read year :: Integer
@@ -256,10 +270,11 @@ convertToTime year month day hour minute = UTCTime ( fromGregorian y m d ) time
                                 min = read minute :: Integer
                                 time = secondsToDiffTime $ (3600 * h) + (60 * min)
                                 
-
+-- Creates a UI.option (i.e. for a UI.select) for a Show-able thing
 optionNamed :: (Show a) => a -> UI Element
 optionNamed a = UI.option #+ [ string (show a) ]
-        
+
+-- These methods are used for populating selection lists for month, day, etc.            
 monthOptions :: [UI Element]
 monthOptions = map (\x -> UI.option #+ [ string x] ) monthNames
 
@@ -273,12 +288,14 @@ hourOptions :: [UI Element]
 hourOptions = map optionNamed [0..23]
 
 minuteOptions :: [UI Element]
-minuteOptions = map optionNamed [0..59]            
+minuteOptions = map optionNamed [0..59]
 
 monthNames :: [String]
 monthNames = [ "January", "February", "March", "April", "May", "June", "July",
               "August", "September", "October", "November", "December"]
-        
+------------------------------------------------------------------------------              
+-- This method was taken from the threepenny repository (Widgets.hs),
+-- allows you to directly manipulate items in a UI.select list.
 items = mkWriteAttr $ \i x -> void $ do
         return x # set children [] #+ map (\i -> UI.option #+ [i]) i
 

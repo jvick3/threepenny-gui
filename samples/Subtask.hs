@@ -3,6 +3,13 @@
              StandaloneDeriving #-}
 -- OverloadedStrings is used so that ByteString's are just String's.    
 
+   
+-- UNM CS 556, Fall 2015
+-- James Vickers
+-- Data type definitions for Task/Subtask, for the Subtask project.
+-- Also includes some functionality like computing the % complete
+-- of subtasks for a task, and type instances to support sorting,
+-- comparison, and JSON persistence of tasks and their subtasks.   
 
 module Subtask where
 
